@@ -1,0 +1,43 @@
+# Development/research configuration. Security review and runtime validation pending.
+# Invoke explicitly: docker compose --env-file .env.local -f compose.local.yaml ...
+services:
+  mirofish:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: mirofish-local:review
+    init: true
+    ports:
+      - "127.0.0.1:3000:3000"
+      - "127.0.0.1:5001:5001"
+    environment:
+      LLM_API_KEY: "${LLM_API_KEY:?Set LLM_API_KEY in .env.local}"
+      LLM_BASE_URL: "${LLM_BASE_URL:?Choose an approved provider endpoint}"
+      LLM_MODEL_NAME: "${LLM_MODEL_NAME:?Choose a model}"
+      ZEP_API_KEY: "${ZEP_API_KEY:?Set ZEP_API_KEY in .env.local}"
+      SECRET_KEY: "${SECRET_KEY:?Generate a unique local secret}"
+      FLASK_DEBUG: "false"
+      FLASK_HOST: "0.0.0.0"
+      FLASK_PORT: "5001"
+      OASIS_DEFAULT_MAX_ROUNDS: "5"
+    command:
+      - "./node_modules/.bin/concurrently"
+      - "--kill-others"
+      - "npm run backend"
+      - "npm --prefix frontend run dev -- --host 0.0.0.0"
+    volumes:
+      - mirofish_uploads:/app/backend/uploads
+      - mirofish_logs:/app/backend/logs
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:5001/health', timeout=5).read()"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+volumes:
+  mirofish_uploads:
+  mirofish_logs:
